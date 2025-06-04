@@ -4,8 +4,8 @@
     [ x ] predicado valid()
 [ x ] construtor para pilha vazia
 [ x ] push
-[ ] pop (caso nao vazia)
-[ ] peek (caso nao vazia)
+[ x ] pop (caso nao vazia)
+[ x ] peek (caso nao vazia)
 [ x ] isempty
 [ x ] quantos empilhados
 [ ] reverse

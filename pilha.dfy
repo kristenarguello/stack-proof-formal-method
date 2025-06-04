@@ -71,5 +71,40 @@ class Pilha { // sem autocontracts pra definir na mao os pre, pos, variantes e i
         n := qntd;
     }
 
+    method pop() returns (x: int)
+        requires Valid()
+        requires qntd > 0 // garante que a pilha não está vazia
+        // deveria ser isempty aqui como predicate?
 
+        modifies this
+        
+        ensures Valid()
+        ensures qntd == old(qntd) - 1 // garante que a quantidade de elementos diminuiu em 1
+        ensures elementos.Length == old(elementos.Length) // o tamanho do array de elementos não muda
+        ensures x == old(Contents)[|old(Contents)|-1] // garante que x é o último elemento de Contents
+        ensures Contents == old(Contents)[0..|old(Contents)|-1] // remove o último elemento de Contents
+    {
+        x := elementos[qntd - 1]; // pega o último elemento
+        qntd := qntd - 1; // diminui a quantidade de elementos
+        Contents := Contents[0..|Contents|-1]; // remove o último elemento de Contents
+    }
+
+
+    method peek() returns (x: int)
+        requires Valid()
+        requires qntd > 0 // garante que a pilha não está vazia
+
+        ensures Valid()
+        ensures x == old(Contents)[|old(Contents)|-1] // garante que x é o último elemento de Contents
+        ensures Contents == old(Contents) // Contents não muda, só x é atualizado
+        ensures qntd == old(qntd) // a quantidade de elementos não muda
+        ensures elementos.Length == old(elementos.Length) // o tamanho do array de elementos não muda
+    {
+        x := elementos[qntd - 1]; // pega o último elemento
+        // não há necessidade de atualizar Contents, pois só estamos lendo o último elemento
+    }   
+
+    method reverse() {}
+
+    method empilharDuas() {}
 }
