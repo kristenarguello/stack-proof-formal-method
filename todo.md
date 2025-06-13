@@ -8,8 +8,8 @@
 [ x ] peek (caso nao vazia)
 [ x ] isempty
 [ x ] quantos empilhados
-[ ] reverse
-[ ] empilhar duas pilhas
+[ x ] reverse
+[ x ] empilhar duas pilhas
 [ ] main (uso das operacoes)
 
 # revisar em cada um
