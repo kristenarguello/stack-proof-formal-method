@@ -54,7 +54,6 @@ class Pilha { // sem autocontracts pra definir na mao os pre, pos, variantes e i
         Contents := Contents + [x]; // atualizacao do ghost
     }
 
-
     // metodo auxiliar para dobrar o tamanho do array de elementos
     // é chamado quando qntd atinge o tamanho do array
     method doubleSize()
@@ -126,29 +125,39 @@ class Pilha { // sem autocontracts pra definir na mao os pre, pos, variantes e i
         elementos[qntd-1]
     }   
 
-    method reverse()
-        requires Valid()
+    // transformada em metodo puro (sem modificacoes no estado)
+    // estava dando problema na hora de utilizar na main - nao deixava modificar o estado
+    method reverse(orig: Pilha) returns (rev: Pilha) 
+        requires orig.Valid()
 
-        modifies this, elementos
+        ensures fresh(rev)
 
-        ensures Valid()
-        ensures qntd == old(qntd)
-        ensures elementos.Length == old(elementos.Length)
-        ensures forall k :: 0 <= k < elementos.Length ==> elementos[k] == old(elementos[(elementos.Length-1) - k]) // checa se realmente ta reverso
+        ensures rev.Valid()
+        ensures rev.elementos.Length == orig.elementos.Length // garante que o tamanho do array é o mesmo
+        ensures rev.howManyStored() == orig.howManyStored()
+        ensures forall k :: 0 <= k < orig.qntd ==> rev.elementos[k] == orig.elementos[orig.qntd - 1 - k] // mostra q rev é orig invertida
     {
-        var l := elementos.Length - 1;
+        rev := new Pilha();
+        assert rev.Valid();
+
+        var n := orig.elementos.Length;
+        rev.elementos := new int[n];
+        rev.qntd := orig.qntd;
+
+        var l := orig.qntd - 1;
         var i := 0;
-        while i < l - i
-            invariant 0 <= i <= (l + 1) / 2
-            invariant forall k :: 0 <= k < i || l - i < k <= l ==> elementos[k] == old(elementos[l - k])
-            invariant forall k :: i <= k <= l - i ==> elementos[k] == old(elementos[k])
-            decreases (l + 1) / 2 - i
-            modifies elementos
+
+        while i < orig.qntd
+            invariant 0 <= i <= orig.qntd
+            invariant forall j :: 0 <= j < i ==> rev.elementos[j] == orig.elementos[l - j]
+            modifies rev.elementos
+            decreases orig.qntd - i // prova de terminação
         {
-            elementos[i], elementos[l - i] := elementos[l - i], elementos[i];
+            rev.elementos[i] := orig.elementos[l - i];
             i := i + 1;
         }
-        Contents := elementos[0..qntd];
+        rev.Contents := rev.elementos[0..rev.qntd];
+        assert rev.Valid();
     }
 
     method empilharDuas(outra: Pilha) returns (nova: Pilha)
@@ -239,17 +248,19 @@ method Main() {
     assert p1.peek() == 15;
     print("[ x ] pop\n\n");
 
-    // // 4. reverse
-    // print("[ ] reverse");
-    // var firstElementBeforeReverse := p1.elementos[0]; // primeiro da pilha
-    // var lastElementBeforeReverse := p1.peek(); // ultimo antes do reverse
-    // p1.reverse();
-    // assert p1.peek() == 10; // ordem agora invertida
-    // assert p1.howManyStored() == 3;
-    // // verificar se o ultimo do p1 antes é o mesmo do inicio agora
-    // assert p1.elementos[0] == lastElementBeforeReverse;  // First element after reverse should be the last element before
-    // assert p1.peek() == firstElementBeforeReverse;       // Last element after reverse should be the first element before
-    // print("[ x ] reverse");
+
+    // 4. reverse
+    print("[ ] reverse");
+    var firstElementBeforeReverse := p1.elementos[0]; // primeiro da pilha
+    var lastElementBeforeReverse := p1.peek(); // ultimo antes do reverse
+    p1 := p1.reverse(p1);
+    assert p1.peek() == 10; // ordem agora invertida
+    assert p1.howManyStored() == 3;
+    // verificar se o ultimo do p1 antes é o mesmo do inicio agora
+    assert p1.elementos[0] == lastElementBeforeReverse;  // First element after reverse should be the last element before
+    assert p1.peek() == firstElementBeforeReverse;       // Last element after reverse should be the first element before
+    print("[ x ] reverse");
+
 
     // 5. segunda pilha
     print("[ ] segunda pilha\n");
@@ -268,14 +279,15 @@ method Main() {
     assert p2.howManyStored() == 2; // nao altera
     assert p3.howManyStored() == 5;
     assert p2.peek() == 2;
-    assert p1.peek() == 15;  // topo da pilha p1
+    assert p1.peek() == 10; // topo da pilha p1, caso reverse funcione
     assert p3.peek() == 2; // topo da pilha concatenada
-    assert p1.elementos[0] == 10;
-    assert p3.elementos[0..p3.qntd] == [10, 20, 15, 1, 2]; // ordem correta dos elementos na pilha concatenada
-    // assert p3.elementos[0..p3.qntd] == [15, 20, 10, 1, 2]; // ordem correta dos elementos na pilha concatenada
+    assert p1.elementos[0] == 15; // primeiro elemento de p1
+
+    assert p3.elementos[0..p3.qntd] == [15, 20, 10, 1, 2]; // ordem correta dos elementos na pilha concatenada
     print("[ x ] empilharDuas\n\n");
 
-    // 7. Valida ordem resultante em p3: p1 + p2  (base → topo)
+
+    // 7. Valida ordem resultante em p3: p1 + p2 
     print("[ ] Valida ordem resultante em p3\n");
     var a := p3.pop();
     assert a == 2;
@@ -285,22 +297,20 @@ method Main() {
     var b := p3.pop();
     assert b == 1;
     assert p3.howManyStored() == 3; // depois do pop
-    assert p3.peek() == 15; // topo agora é 15
+    assert p3.peek() == 10; // topo agora é 10
 
     var c := p3.pop(); // o primeiro elemento deve ser 15, que era o topo de p1
-    assert c == 15; // primeiro elemento de p1
-    // assert c == 10; //caso reverse funcinoe
+    assert c == 10; //caso reverse funcinoe
     assert p3.howManyStored() == 2; // depois do pop
     assert p3.peek() == 20; // topo agora é 20
 
     var d := p3.pop();
     assert d == 20; 
     assert p3.howManyStored() == 1; // depois do pop
-    assert p3.peek() == 10; // topo agora é 10
+    assert p3.peek() == 15; // topo agora é 10
 
     var e := p3.pop(); // o último elemento deve ser 10, que era o primeiro de p1
-    assert e == 10;
-    // assert e == 15; // caso reverse funcione
+    assert e == 15; // caso reverse funcione
     assert p3.howManyStored() == 0; // depois do pop
     assert p3.isEmpty(); // pilha deve estar vazia
     print("[ x ] Valida ordem resultante em p3\n\n");
