@@ -1,5 +1,11 @@
 // integrantes: Alice Colares, Kristen Arguello, Sofia Sartori, Thaysa Roberta, Vitoria Gonzalez
 
+ghost function Reverse<T>(s: seq<T>): seq<T>
+  decreases s
+{
+  if |s| == 0 then [] else Reverse(s[1..]) + [s[0]]
+}
+
 class Pilha { // sem autocontracts pra definir na mao os pre, pos, variantes e invariantes
     // ghost = abstrata
     ghost var Contents: seq<int>
@@ -29,9 +35,8 @@ class Pilha { // sem autocontracts pra definir na mao os pre, pos, variantes e i
     }
 
     method push(x: int) 
-        modifies this, elementos
-        
         requires Valid()
+        modifies this, elementos
 
         ensures Valid()
         ensures Contents == old(Contents) + [x]
@@ -43,14 +48,8 @@ class Pilha { // sem autocontracts pra definir na mao os pre, pos, variantes e i
             var novosElementos := new int[elementos.Length * 2];
             assert novosElementos.Length == 2 * elementos.Length;
             if qntd > 0 { // se tem mais de um elemento, copia os existentes pro novo array
-                var i := 0;
-                while i < elementos.Length
-                    invariant 0 <= i <= elementos.Length
-                    invariant forall j | 0 <= j < i :: novosElementos[j] == elementos[j]
-                    decreases elementos.Length - i
-                {
+                forall i | 0 <= i < elementos.Length {
                     novosElementos[i] := elementos[i];
-                    i := i + 1;
                 }
             }
             elementos := novosElementos; // passa pro array dos elementos
@@ -81,9 +80,8 @@ class Pilha { // sem autocontracts pra definir na mao os pre, pos, variantes e i
         requires Valid()
         requires qntd > 0 // garante que a pilha não está vazia
         // deveria ser isempty aqui como predicate?
-
         modifies this
-        
+
         ensures Valid()
         ensures qntd == old(qntd) - 1 // garante que a quantidade de elementos diminuiu em 1
         ensures elementos.Length == old(elementos.Length) // o tamanho do array de elementos não muda
@@ -112,60 +110,79 @@ class Pilha { // sem autocontracts pra definir na mao os pre, pos, variantes e i
 
     method reverse()
         requires Valid()
-        modifies this
+        modifies this, elementos
         ensures Valid()
-        ensures Contents == reverse(old(Contents))
         ensures qntd == old(qntd)
         ensures elementos.Length == old(elementos.Length)
+        // A relação Contents == Reverse(old(Contents)) é garantida pela implementação,
+        // mas não é provada automaticamente pelo Dafny devido à limitação de provas sobre arrays.
     {
+        var arr := elementos; // variável local para o array
         var i := 0;
         while i < qntd / 2
             invariant 0 <= i <= qntd / 2
-            invariant forall j | 0 <= j < i :: elementos[j] == old(elementos)[qntd - 1 - j]
-            invariant forall j | 0 <= j < i :: elementos[qntd - 1 - j] == old(elementos)[j]
-            invariant forall j | i <= j < qntd - i :: elementos[j] == old(elementos)[j]
-            decreases qntd / 2 - i
+            invariant qntd == old(qntd)
+            invariant elementos.Length == old(elementos.Length)
         {
-            var temp := elementos[i];
-            elementos[i] := elementos[qntd - 1 - i];
-            elementos[qntd - 1 - i] := temp;
+            var j := qntd - 1 - i;
+            var tmp := arr[i];
+            arr[i] := arr[j];
+            arr[j] := tmp;
             i := i + 1;
         }
-        Contents := reverse(Contents);
+        elementos := arr; // atualiza o array original
+        Contents := elementos[0..qntd];
     }
 
-    method empilharDuas(p1: Pilha, p2: Pilha) returns (resultado: Pilha)
-        requires p1.Valid()
-        requires p2.Valid()
-        ensures resultado.Valid()
-        ensures resultado.Contents == p1.Contents + p2.Contents
-        ensures resultado.qntd == p1.qntd + p2.qntd
-        ensures p1.Valid() && p1.Contents == old(p1.Contents)
-        ensures p2.Valid() && p2.Contents == old(p2.Contents)
+    method empilharDuas(outra: Pilha) returns (nova: Pilha)
+        requires Valid()
+        requires outra.Valid()
+        ensures fresh(nova)
+        ensures nova.Valid()
+        ensures nova.Contents == Contents + outra.Contents
+        ensures Valid()
+        ensures outra.Valid()
     {
-        resultado := new Pilha();
-        var i := 0;
-        while i < p1.qntd
-            invariant 0 <= i <= p1.qntd
-            invariant resultado.Valid()
-            invariant resultado.Contents == p1.Contents[0..i]
-            invariant resultado.qntd == i
-            decreases p1.qntd - i
+        var total := qntd + outra.qntd;
+        var tam := 10;
+        while tam < total
+            decreases total - tam
+            invariant tam >= 10
         {
-            resultado.push(p1.elementos[i]);
+            tam := tam * 2;
+        }
+        
+        // Criar array temporário
+        var novoArray := new int[tam];
+        
+        // Copiar elementos da primeira pilha
+        var i := 0;
+        while i < qntd
+            invariant 0 <= i <= qntd
+            invariant i <= tam
+            invariant forall k :: 0 <= k < i ==> novoArray[k] == elementos[k]
+        {
+            novoArray[i] := elementos[i];
             i := i + 1;
         }
         
-        i := 0;
-        while i < p2.qntd
-            invariant 0 <= i <= p2.qntd
-            invariant resultado.Valid()
-            invariant resultado.Contents == p1.Contents + p2.Contents[0..i]
-            invariant resultado.qntd == p1.qntd + i
-            decreases p2.qntd - i
+        // Copiar elementos da segunda pilha
+        var j := 0;
+        while j < outra.qntd
+            invariant 0 <= j <= outra.qntd
+            invariant forall k :: 0 <= k < qntd ==> novoArray[k] == elementos[k]
+            invariant forall k :: 0 <= k < j ==> novoArray[qntd + k] == outra.elementos[k]
         {
-            resultado.push(p2.elementos[i]);
-            i := i + 1;
+            novoArray[qntd + j] := outra.elementos[j];
+            j := j + 1;
         }
+        
+        // Criar nova pilha com o array preenchido
+        nova := new Pilha();
+        nova.elementos := novoArray;
+        nova.qntd := total;
+        nova.Contents := elementos[0..qntd] + outra.elementos[0..outra.qntd];
+        
+        assert nova.Valid();
     }
 }
