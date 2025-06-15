@@ -222,59 +222,54 @@ class Pilha { // sem autocontracts pra definir na mao os pre, pos, variantes e i
 
 method Main() {    
     // 1. pilha vazia
-    print("[ ] isEmpty\n");
     var p1: Pilha := new Pilha();
+    print("[ x ] Construtor deve instanciar uma pilha vazia\n");
     assert p1.isEmpty();
+    print("[ x ] Verificar se a pilha está vazia ou não\n");
     assert p1.howManyStored() == 0;
-    print("[ x ] isEmpty\n\n");
+    print("[ x ] Consultar o número de elementos armazenados na pilha\n");
 
     // 2. push
-    print("[ ] push\n");
     p1.push(10);
     p1.push(20);
     p1.push(15);
     p1.push(30);
+    print("[ x ] Adicionar um novo elemento no topo da pilha\n");
     assert !p1.isEmpty();
     assert p1.howManyStored() == 4;
     assert p1.peek() == 30;
-    print("[ x ] push\n\n");
+    print("[ x ] Ler o valor do topo da pilha, sem removê-lo, caso a pilha não esteja vazia\n");
 
 
     // 3. pop
-    print("[ ] pop\n");
     var x := p1.pop();
     assert x == 30;
     assert p1.howManyStored() == 3;
     assert p1.peek() == 15;
-    print("[ x ] pop\n\n");
+    print("[ x ] Remover um elemento do topo da pilha, caso ela não esteja vazia\n");
 
 
     // 4. reverse
-    print("[ ] reverse");
     var firstElementBeforeReverse := p1.elementos[0]; // primeiro da pilha
     var lastElementBeforeReverse := p1.peek(); // ultimo antes do reverse
     p1 := p1.reverse(p1);
+    print("[ x ] Inverter a ordem dos elementos da pilha\n");
     assert p1.peek() == 10; // ordem agora invertida
     assert p1.howManyStored() == 3;
     // verificar se o ultimo do p1 antes é o mesmo do inicio agora
     assert p1.elementos[0] == lastElementBeforeReverse;  // First element after reverse should be the last element before
     assert p1.peek() == firstElementBeforeReverse;       // Last element after reverse should be the first element before
-    print("[ x ] reverse");
-
 
     // 5. segunda pilha
-    print("[ ] segunda pilha\n");
     var p2 := new Pilha();
     p2.push(1);
     p2.push(2);
     assert p2.peek() == 2;
     assert p2.howManyStored() == 2;
-    print("[ x ] segunda pilha\n\n");
-    
 
     // 6. empilharDuas – não altera p1 nem p2, mas gera uma nova
-    print("[ ] empilharDuas\n");
     var p3 := p1.empilharDuas(p2);
+    print("[ x ] Empilhar uma pilha sobre outra, retornando uma nova pilha, sem alterar as pilhas fornecidas como argumento\n\n");
     assert p1.howManyStored() == 3; // nao altera
     assert p2.howManyStored() == 2; // nao altera
     assert p3.howManyStored() == 5;
@@ -284,11 +279,8 @@ method Main() {
     assert p1.elementos[0] == 15; // primeiro elemento de p1
 
     assert p3.elementos[0..p3.qntd] == [15, 20, 10, 1, 2]; // ordem correta dos elementos na pilha concatenada
-    print("[ x ] empilharDuas\n\n");
-
 
     // 7. Valida ordem resultante em p3: p1 + p2 
-    print("[ ] Valida ordem resultante em p3\n");
     var a := p3.pop();
     assert a == 2;
     assert p3.howManyStored() == 4; // depois do pop
@@ -313,7 +305,6 @@ method Main() {
     assert e == 15; // caso reverse funcione
     assert p3.howManyStored() == 0; // depois do pop
     assert p3.isEmpty(); // pilha deve estar vazia
-    print("[ x ] Valida ordem resultante em p3\n\n");
     
-    print("FIM");
+    print("[ x ] Main executada com sucesso!\n");
 }
