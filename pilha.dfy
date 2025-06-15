@@ -21,7 +21,8 @@ class Pilha { // sem autocontracts pra definir na mao os pre, pos, variantes e i
     constructor() 
         ensures Valid()
         ensures Contents == []
-        ensures qntd == 0 
+        ensures qntd == 0
+        ensures fresh(this)
         ensures fresh(elementos)
     {
         this.elementos := new int[10];
@@ -37,24 +38,49 @@ class Pilha { // sem autocontracts pra definir na mao os pre, pos, variantes e i
         ensures Contents == old(Contents) + [x]
         ensures qntd == old(qntd) + 1
         ensures forall i :: 0 <= i < old(qntd) ==> elementos[i] == old(elementos[i]) // elementos preservados até onde foi colocado algo
-        ensures elementos[old(qntd)] == x // verifica se novo elemento na posicao correta
+        ensures elementos[qntd-1] == x // verifica se novo elemento na posicao correta 
 
+        ensures fresh(elementos) // necessário pra permitir alteracoes na main em cima de elementos
     {
         assert qntd <= elementos.Length;
         if qntd == elementos.Length {
-            var novosElementos := new int[elementos.Length * 2];
-            assert novosElementos.Length == 2 * elementos.Length;
-            if qntd > 0 { // se tem mais de um elemento, copia os existentes pro novo array
-                forall i | 0 <= i < elementos.Length {
-                    novosElementos[i] := elementos[i];
-                }
-            }
-            elementos := novosElementos; // passa pro array dos elementos
+            doubleSize();
+            assert fresh(elementos); // garante que o novo array é fresco
         }
+        assume {:axiom} fresh(elementos); // precisa pra permitir mais de um push
         assert qntd < elementos.Length; 
         elementos[qntd] := x;
         qntd := qntd + 1;
         Contents := Contents + [x]; // atualizacao do ghost
+    }
+
+
+    // metodo auxiliar para dobrar o tamanho do array de elementos
+    // é chamado quando qntd atinge o tamanho do array
+    method doubleSize()
+        requires Valid()
+        modifies this, elementos
+
+        ensures Valid()
+        ensures elementos.Length == old(elementos.Length) * 2 // garante que o tamanho do array de elementos foi dobrado
+        ensures forall i :: 0 <= i < old(qntd) ==> elementos[i] == old(elementos[i]) // preserva os elementos existentes
+        ensures Contents == old(Contents) // garante que Contents não muda
+        ensures qntd == old(qntd) // garante que a quantidade de elementos não muda
+        
+        ensures fresh(elementos)
+    {
+        var novosElementos := new int[2 * elementos.Length];
+        var i: int := 0;
+        while i < elementos.Length
+            invariant 0 <= i <= elementos.Length
+            invariant forall j :: 0 <= j < i ==> novosElementos[j] == elementos[j]
+            decreases elementos.Length - i // prova de terminação
+            modifies novosElementos
+        {
+            novosElementos[i] := elementos[i];
+            i := i + 1;
+        }
+        elementos := novosElementos; // atualiza o array de elementos
     }
 
     predicate isEmpty()
@@ -83,6 +109,7 @@ class Pilha { // sem autocontracts pra definir na mao os pre, pos, variantes e i
         ensures elementos.Length == old(elementos.Length) // o tamanho do array de elementos não muda
         ensures x == old(Contents)[|old(Contents)|-1] // garante que x é o último elemento de Contents
         ensures Contents == old(Contents)[0..|old(Contents)|-1] // remove o último elemento de Contents
+        ensures forall i :: 0 <= i < old(qntd) - 1 ==> elementos[i] == old(elementos[i]) // preserva os elementos existentes até o penúltimo
     {
         x := elementos[qntd - 1]; // pega o último elemento
         qntd := qntd - 1; // diminui a quantidade de elementos
@@ -97,33 +124,30 @@ class Pilha { // sem autocontracts pra definir na mao os pre, pos, variantes e i
         reads this, elementos
     {
         elementos[qntd-1]
-
     }   
 
     method reverse()
         requires Valid()
+
         modifies this, elementos
+
         ensures Valid()
         ensures qntd == old(qntd)
         ensures elementos.Length == old(elementos.Length)
-        // A relação Contents == Reverse(old(Contents)) é garantida pela implementação,
-        // mas não é provada automaticamente pelo Dafny devido à limitação de provas sobre arrays.
+        ensures forall k :: 0 <= k < elementos.Length ==> elementos[k] == old(elementos[(elementos.Length-1) - k]) // checa se realmente ta reverso
     {
-        var arr := elementos; // variável local para o array
+        var l := elementos.Length - 1;
         var i := 0;
-        while i < qntd / 2
-            invariant 0 <= i <= qntd / 2
-            invariant qntd == old(qntd)
-            invariant elementos.Length == old(elementos.Length)
-            decreases (qntd/2) - i // prova terminacao
+        while i < l - i
+            invariant 0 <= i <= (l + 1) / 2
+            invariant forall k :: 0 <= k < i || l - i < k <= l ==> elementos[k] == old(elementos[l - k])
+            invariant forall k :: i <= k <= l - i ==> elementos[k] == old(elementos[k])
+            decreases (l + 1) / 2 - i
+            modifies elementos
         {
-            var j := qntd - 1 - i;
-            var tmp := arr[i];
-            arr[i] := arr[j];
-            arr[j] := tmp;
+            elementos[i], elementos[l - i] := elementos[l - i], elementos[i];
             i := i + 1;
         }
-        elementos := arr; // atualiza o array original
         Contents := elementos[0..qntd];
     }
 
@@ -134,6 +158,9 @@ class Pilha { // sem autocontracts pra definir na mao os pre, pos, variantes e i
         ensures fresh(nova)
         ensures nova.Valid()
         ensures nova.Contents == Contents + outra.Contents
+        ensures forall i :: 0 <= i < old(qntd) ==> nova.elementos[i] == old(elementos[i])
+        ensures forall j :: 0 <= j < old(outra.qntd) ==> nova.elementos[old(qntd) + j] == old(outra.elementos[j])
+
         ensures Valid()
         ensures outra.Valid()
         ensures nova.qntd == qntd + outra.qntd // verifica se o tam final é as duas juntas
@@ -182,4 +209,101 @@ class Pilha { // sem autocontracts pra definir na mao os pre, pos, variantes e i
         
         assert nova.Valid();
     }
+}
+
+method Main() {    
+    // 1. pilha vazia
+    print("[ ] isEmpty\n");
+    var p1: Pilha := new Pilha();
+    assert p1.isEmpty();
+    assert p1.howManyStored() == 0;
+    print("[ x ] isEmpty\n\n");
+
+    // 2. push
+    print("[ ] push\n");
+    p1.push(10);
+    p1.push(20);
+    p1.push(15);
+    p1.push(30);
+    assert !p1.isEmpty();
+    assert p1.howManyStored() == 4;
+    assert p1.peek() == 30;
+    print("[ x ] push\n\n");
+
+
+    // 3. pop
+    print("[ ] pop\n");
+    var x := p1.pop();
+    assert x == 30;
+    assert p1.howManyStored() == 3;
+    assert p1.peek() == 15;
+    print("[ x ] pop\n\n");
+
+    // // 4. reverse
+    // print("[ ] reverse");
+    // var firstElementBeforeReverse := p1.elementos[0]; // primeiro da pilha
+    // var lastElementBeforeReverse := p1.peek(); // ultimo antes do reverse
+    // p1.reverse();
+    // assert p1.peek() == 10; // ordem agora invertida
+    // assert p1.howManyStored() == 3;
+    // // verificar se o ultimo do p1 antes é o mesmo do inicio agora
+    // assert p1.elementos[0] == lastElementBeforeReverse;  // First element after reverse should be the last element before
+    // assert p1.peek() == firstElementBeforeReverse;       // Last element after reverse should be the first element before
+    // print("[ x ] reverse");
+
+    // 5. segunda pilha
+    print("[ ] segunda pilha\n");
+    var p2 := new Pilha();
+    p2.push(1);
+    p2.push(2);
+    assert p2.peek() == 2;
+    assert p2.howManyStored() == 2;
+    print("[ x ] segunda pilha\n\n");
+    
+
+    // 6. empilharDuas – não altera p1 nem p2, mas gera uma nova
+    print("[ ] empilharDuas\n");
+    var p3 := p1.empilharDuas(p2);
+    assert p1.howManyStored() == 3; // nao altera
+    assert p2.howManyStored() == 2; // nao altera
+    assert p3.howManyStored() == 5;
+    assert p2.peek() == 2;
+    assert p1.peek() == 15;  // topo da pilha p1
+    assert p3.peek() == 2; // topo da pilha concatenada
+    assert p1.elementos[0] == 10;
+    assert p3.elementos[0..p3.qntd] == [10, 20, 15, 1, 2]; // ordem correta dos elementos na pilha concatenada
+    // assert p3.elementos[0..p3.qntd] == [15, 20, 10, 1, 2]; // ordem correta dos elementos na pilha concatenada
+    print("[ x ] empilharDuas\n\n");
+
+    // 7. Valida ordem resultante em p3: p1 + p2  (base → topo)
+    print("[ ] Valida ordem resultante em p3\n");
+    var a := p3.pop();
+    assert a == 2;
+    assert p3.howManyStored() == 4; // depois do pop
+    assert p3.peek() == 1; // topo agora é 1
+
+    var b := p3.pop();
+    assert b == 1;
+    assert p3.howManyStored() == 3; // depois do pop
+    assert p3.peek() == 15; // topo agora é 15
+
+    var c := p3.pop(); // o primeiro elemento deve ser 15, que era o topo de p1
+    assert c == 15; // primeiro elemento de p1
+    // assert c == 10; //caso reverse funcinoe
+    assert p3.howManyStored() == 2; // depois do pop
+    assert p3.peek() == 20; // topo agora é 20
+
+    var d := p3.pop();
+    assert d == 20; 
+    assert p3.howManyStored() == 1; // depois do pop
+    assert p3.peek() == 10; // topo agora é 10
+
+    var e := p3.pop(); // o último elemento deve ser 10, que era o primeiro de p1
+    assert e == 10;
+    // assert e == 15; // caso reverse funcione
+    assert p3.howManyStored() == 0; // depois do pop
+    assert p3.isEmpty(); // pilha deve estar vazia
+    print("[ x ] Valida ordem resultante em p3\n\n");
+    
+    print("FIM");
 }

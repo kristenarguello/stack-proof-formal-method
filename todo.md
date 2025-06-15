@@ -10,10 +10,13 @@
 [ x ] quantos empilhados
 [ x ] reverse
 [ x ] empilhar duas pilhas
-[ ] main (uso das operacoes)
+[ x ] main (uso das operacoes)  
+    [  ] tá faltando o uso do reverse
 
 # revisar em cada um
-[ ] prés-condicoes
-[ ] pós-condicoes
-[ ] invariantes
-[ ] variantes
+[ x ] prés-condicoes
+[ x ] pós-condicoes
+[ x ] invariantes
+[ x ] variantes
+
+
